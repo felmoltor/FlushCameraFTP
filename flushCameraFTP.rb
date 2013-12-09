@@ -15,8 +15,8 @@ $movementdir = "#{$localcameradir}/Movement"
 $remotecameradir = "Camera"
 
 # Filename details
-$movement_photo_re = /<name_pattern_for_your_movement_images>\d+\.jpe?g/
-$scheduled_photo_re = /<name_pattern_for_your_images>_\d+\.jpe?g/
+$movement_photo_re = /movement_image_name_\d+\.jpe?g/
+$scheduled_photo_re = /casa_madrid_\d+\.jpe?g/
 
 #############
 
@@ -143,12 +143,10 @@ if (! File.exists?($movementepochf))
   f.close()
 end
 # Destination directories
-Dir.mkdir($localcameradir) if (not Dir.exists?($localcameradir)) 
-Dir.mkdir($scheduleddir) if (not Dir.exists?($scheduleddir)) 
-Dir.mkdir($movementdir) if (not Dir.exists?($movementdir)) 
+FileUtils.mkdir_p($localcameradir) if (not Dir.exists?($localcameradir)) 
 # Destination directories exec time
-Dir.mkdir("#{$scheduleddir}/#{today_epoch}") if (not Dir.exists?("#{$scheduleddir}/#{today_epoch}")) 
-Dir.mkdir("#{$movementdir}/#{today_epoch}") if (not Dir.exists?("#{$movementdir}/#{today_epoch}")) 
+FileUtils.mkdir_p("#{$scheduleddir}/#{today_epoch}") if (not Dir.exists?("#{$scheduleddir}/#{today_epoch}")) 
+FileUtils.mkdir_p("#{$movementdir}/#{today_epoch}") if (not Dir.exists?("#{$movementdir}/#{today_epoch}")) 
 
 
 # connect with FTP Server
@@ -239,6 +237,11 @@ if (n_schedimages_dlw > 0 or n_schedimages_del > 0)
   puts "Comprimiendo directorio #{$scheduleddir}/#{today_epoch}..."
   system("tar -czf #{$scheduleddir}/#{today_epoch}.tar.gz #{$scheduleddir}/#{today_epoch}")
 end
+
+# Eliminamos los directorios y fotos si se ha comprimido bien:
+FileUtils.rm_rf("#{$scheduleddir}/#{today_epoch}")
+FileUtils.rm_rf("#{$movementdir}/#{today_epoch}")
+
 
 puts "Bye, bye..."
 
