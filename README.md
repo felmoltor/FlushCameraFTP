@@ -25,5 +25,5 @@ $movementdir = "#{$localcameradir}/Movement"
 $remotecameradir = "<your_remote_dir>"
 ```
 
-Set a cron in your device to execute this script every 2 or 3 days to flush the images of your Conceptronic IP Camera 
+Set a __cron__ in your device to execute this script every 2 or 3 days to flush the images of your Conceptronic IP Camera 
 from the FTP server.
