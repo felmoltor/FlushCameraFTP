@@ -9,14 +9,57 @@ require 'fileutils'
 $scheduledepochf = "scheduledepoch.txt"
 $movementepochf = "movementepoch.txt"
 $ftpdetailsfile = "ftpdetails.txt"
+$smtpdetailsfile = "smtpdetails.txt"
 $localcameradir = "/home/harvester/Camera"
 $scheduleddir = "#{$localcameradir}/Scheduled"
 $movementdir = "#{$localcameradir}/Movement"
 $remotecameradir = "Camera"
 
 # Filename details
-$movement_photo_re = /movement_image_name_\d+\.jpe?g/
+$movement_photo_re = /.{12}\(.{7}\)_\d_\d{14}_\d+\.jpe?g/
 $scheduled_photo_re = /casa_madrid_\d+\.jpe?g/
+
+#############
+
+def readSMTPDetails()
+  server = "localhost"
+  port = 25
+  user = "anonymous"
+  password = "anonymous"
+  destinations = []
+  
+  smtpf = File.open($smtpdetailsfile,"r")
+  
+  smtpf.each {|line|
+    smatch = /server\s*:\s*(.*)/.match(line)
+    umatch = /user\s*:\s*(.*)/.match(line)
+    pmatch = /pass\s*:\s*(.*)/.match(line)
+    portmatch = /port\s*:\s*(.*)/.match(line)
+    destmatch = /destination\s*:\s*(.*)/.match(line)
+    
+    if (! smatch.nil? and !smatch[1].nil?)
+      server = smatch[1].strip()
+    end
+    
+    if (! umatch.nil? and !umatch[1].nil?)
+      user = umatch[1].strip()
+    end 
+    
+    if (! pmatch.nil? and !pmatch[1].nil?)
+      password = pmatch[1].strip()
+    end
+    
+    if (! portmatch.nil? and ! portmatch[1].nil?)
+      port = portmatch[1].strip()
+    end
+    
+    if (! destmatch.nil? and !destmatch[1].nil?)
+      destinations << destmatch[1].strip()
+    end
+  }
+  
+  return server,port,user,password,destinations 
+end
 
 #############
 
@@ -126,6 +169,7 @@ n_schedimages_dlw = 0
 n_schedimages_del = 0
 n_movimages_dlw = 0
 n_movimages_del = 0
+movementEmailSent = False
 today_epoch = Time.now.strftime("%s")
 
 # Initialice files and directories if doesn't exists
@@ -148,6 +192,8 @@ FileUtils.mkdir_p($localcameradir) if (not Dir.exists?($localcameradir))
 FileUtils.mkdir_p("#{$scheduleddir}/#{today_epoch}") if (not Dir.exists?("#{$scheduleddir}/#{today_epoch}")) 
 FileUtils.mkdir_p("#{$movementdir}/#{today_epoch}") if (not Dir.exists?("#{$movementdir}/#{today_epoch}")) 
 
+# Retrieve smtp server configuration
+smtpServer,smtpPort,smtpUser,smtpPass,smtpDestinations = readSMTPDetails()
 
 # connect with FTP Server
 ftpserver,ftpuser,ftppass = readFTPDetails()
@@ -208,6 +254,13 @@ files.each { |file|
     fmov.write("Last download: #{today_epoch}\n")
     fmov.write("Last delete: 0\n")
     fmov.close()
+    
+    # Send the email if we have an smtp server configured
+    if ! movementEmailSent and ! smtpServer.nil?
+      smtpDestinations.each { |email|
+        system("mutt -s 'Motion detected on your house!' -a #{motion_photo} #{email}") 
+      }
+    end
 
   else 
     puts"#{filename} is not a movement nor scheduled image. Skipping..."
