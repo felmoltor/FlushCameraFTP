@@ -25,8 +25,8 @@ $scheduled_photo_re = /casa_madrid_\d+\.jpe?g/
 def readSMTPDetails()
   server = "localhost"
   port = 25
-  user = "anonymous"
-  password = "anonymous"
+  user = nil
+  password = nil
   ssl = false
   starttls = false
   destinations = []
@@ -297,18 +297,55 @@ if File.exists?($smtpdetailsfile)
   localid = "#{`whoami`}"
   localhost = "#{`hostname`}"
   localaddress = "#{localid}@#{localhost}"
+  
+  smtp = Net::SMTP.start(smtpServer, smtpPort)
+  
+  puts "smtpStartTLS: #{smtpStartTLS}"
+  puts "smtp.capable_starttls?: #{smtp.capable_starttls?}"
+  # Si el servidor es capaz y hemos establecido a true el STARTTLS
+  if smtpStartTLS and smtp.capable_starttls?
+    smtp.enable_starttls
+  end
+  
+  #puts "Auth plain #{smtp.capable_plain_auth?}"
+  #puts "Auth login #{smtp.capable_login_auth?}"
+  #puts "Auth cram md5 #{smtp.capable_cram_md5_auth?}"
+  
+  # Si el servidor es capaz y hemos establecido a true el STARTTLS
+  if smtpStartTLS and smtp.capable_starttls?
+    smtp.enable_starttls
+  end
+  
+  if (! smtpUser.nil? and ! smtpPass.nil?)
+    smtp.auth_login(smtpUser, smtpPass)
+  end
+  
+  
+message = <<EMAILMESSAGE
+From: <<ORIGINALADDR>>
+To: <<DESTADDR>
+Subject: El proceso de vaciado del FTP termino
 
-  Net::SMTP.start(smtpServer, smtpPort, localhost, smtpUser, smtpPass, :login) do |smtp|
-    # Use the SMTP object smtp only in this block.
+<<MESSAGE>>
+
+EMAILMESSAGE
+
+  smtpDestinations.each { |destination|
+    message.gsub!("<<MESSAGE>>",msg)
+    message.gsub!("<<DESTADDR>>",destination)
+    message.gsub!("<<ORIGINALADDR>>",localaddress)
+    
+    puts message
     
     begin      
-      smtp.send_message msg,localaddress,smtpDestinations
+      smtp.send_message message,localaddress,destination
     rescue Exception => e
       $stderr.puts "Ocurrio algun error enviando el correo de notificacion."    
     end  
+  }
   
-    smtp.finish
-  end
+  smtp.finish
+  
 end
 
 
@@ -328,4 +365,3 @@ FileUtils.rm_rf("#{$movementdir}/#{today_epoch}")
 
 
 puts "Bye, bye..."
-
