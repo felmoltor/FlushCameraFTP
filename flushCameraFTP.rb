@@ -2,6 +2,7 @@
 
 require 'net/ftp'
 require 'fileutils'
+require 'net/smtp'
 
 # TODO: Read $user and $password from CFG file
 
@@ -26,6 +27,8 @@ def readSMTPDetails()
   port = 25
   user = "anonymous"
   password = "anonymous"
+  ssl = false
+  starttls = false
   destinations = []
   
   smtpf = File.open($smtpdetailsfile,"r")
@@ -35,7 +38,9 @@ def readSMTPDetails()
     umatch = /user\s*:\s*(.*)/.match(line)
     pmatch = /pass\s*:\s*(.*)/.match(line)
     portmatch = /port\s*:\s*(.*)/.match(line)
-    destmatch = /destination\s*:\s*(.*)/.match(line)
+    destmatch = /destinations\s*:\s*(.*)/.match(line)
+    sslmatch = /ssl\s*:\s*(.*)/.match(line)
+    starttlsmatch = /starttls\s*:\s*(.*)/.match(line)
     
     if (! smatch.nil? and !smatch[1].nil?)
       server = smatch[1].strip()
@@ -54,11 +59,19 @@ def readSMTPDetails()
     end
     
     if (! destmatch.nil? and !destmatch[1].nil?)
-      destinations << destmatch[1].strip()
+      destinations = destmatch[1].split(",")
+    end
+    
+    if (! sslmatch.nil? and ! sslmatch[1].nil?)
+      ssl = true
+    end
+    
+    if (! starttlsmatch.nil? and ! starttlsmatch[1].nil?)
+      starttls = true
     end
   }
   
-  return server,port,user,password,destinations 
+  return server,port,user,password,destinations,ssl,starttls
 end
 
 #############
@@ -169,7 +182,7 @@ n_schedimages_dlw = 0
 n_schedimages_del = 0
 n_movimages_dlw = 0
 n_movimages_del = 0
-movementEmailSent = False
+movementEmailSent = false
 today_epoch = Time.now.strftime("%s")
 
 # Initialice files and directories if doesn't exists
@@ -191,9 +204,6 @@ FileUtils.mkdir_p($localcameradir) if (not Dir.exists?($localcameradir))
 # Destination directories exec time
 FileUtils.mkdir_p("#{$scheduleddir}/#{today_epoch}") if (not Dir.exists?("#{$scheduleddir}/#{today_epoch}")) 
 FileUtils.mkdir_p("#{$movementdir}/#{today_epoch}") if (not Dir.exists?("#{$movementdir}/#{today_epoch}")) 
-
-# Retrieve smtp server configuration
-smtpServer,smtpPort,smtpUser,smtpPass,smtpDestinations = readSMTPDetails()
 
 # connect with FTP Server
 ftpserver,ftpuser,ftppass = readFTPDetails()
@@ -254,14 +264,6 @@ files.each { |file|
     fmov.write("Last download: #{today_epoch}\n")
     fmov.write("Last delete: 0\n")
     fmov.close()
-    
-    # Send the email if we have an smtp server configured
-    if ! movementEmailSent and ! smtpServer.nil?
-      smtpDestinations.each { |email|
-        system("mutt -s 'Motion detected on your house!' -a #{motion_photo} #{email}") 
-      }
-    end
-
   else 
     puts"#{filename} is not a movement nor scheduled image. Skipping..."
   end
@@ -269,17 +271,46 @@ files.each { |file|
 
 ftp.close()
 
-puts
-puts "==================================="
-puts "= Scheduled images: "
-puts "= #{n_schedimages_dlw} dowloaded"
-puts "= #{n_schedimages_del} deleted"
-puts 
-puts "= Movement images: "
-puts "= #{n_movimages_dlw} dowloaded"
-puts "= #{n_movimages_del} deleted"
-puts "==================================="
-puts
+msg = "Se ejecuto correctamente el vaciado del FTP #{ftpserver}.\n"
+msg = "Estadisticas de la ejecucion\n"
+msg = "\n"
+msg = "===================================\n"
+msg = "= Scheduled images: \n"
+msg = "= #{n_schedimages_dlw} dowloaded\n"
+msg = "= #{n_schedimages_del} deleted\n"
+msg = "\n"
+msg = "= Movement images: \n"
+msg = "= #{n_movimages_dlw} dowloaded\n"
+msg = "= #{n_movimages_del} deleted\n"
+msg = "===================================\n"
+msg = "\n"
+
+puts msg
+
+# Email results
+# Si no existe el fichero de configuración SNMP no enviamos el correo
+if File.exists?($smtpdetailsfile)
+  
+  # Retrieve smtp server configuration
+  smtpServer,smtpPort,smtpUser,smtpPass,smtpDestinations,smtpSSL,smtpStartTLS = readSMTPDetails()
+  
+  localid = "#{`whoami`}"
+  localhost = "#{`hostname`}"
+  localaddress = "#{localid}@#{localhost}"
+
+  Net::SMTP.start(smtpServer, smtpPort, localhost, smtpUser, smtpPass, :login) do |smtp|
+    # Use the SMTP object smtp only in this block.
+    
+    begin      
+      smtp.send_message msg,localaddress,smtpDestinations
+    rescue Exception => e
+      $stderr.puts "Ocurrio algun error enviando el correo de notificacion."    
+    end  
+  
+    smtp.finish
+  end
+end
+
 
 if (n_movimages_dlw > 0 or n_movimages_del > 0)
   puts "Comprimiendo directorio #{$movementdir}/#{today_epoch}..."
