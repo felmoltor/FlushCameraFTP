@@ -294,8 +294,8 @@ if File.exists?($smtpdetailsfile)
   # Retrieve smtp server configuration
   smtpServer,smtpPort,smtpUser,smtpPass,smtpDestinations,smtpSSL,smtpStartTLS = readSMTPDetails()
   
-  localid = "#{`whoami`}"
-  localhost = "#{`hostname`}"
+  localid = "#{`whoami`.strip}"
+  localhost = "#{`hostname`.strip}"
   localaddress = "#{localid}@#{localhost}"
   
   smtp = Net::SMTP.start(smtpServer, smtpPort)
@@ -323,7 +323,7 @@ if File.exists?($smtpdetailsfile)
   
 message = <<EMAILMESSAGE
 From: <<ORIGINALADDR>>
-To: <<DESTADDR>
+To: <<DESTADDR>>
 Subject: El proceso de vaciado del FTP termino
 
 <<MESSAGE>>
@@ -340,7 +340,8 @@ EMAILMESSAGE
     begin      
       smtp.send_message message,localaddress,destination
     rescue Exception => e
-      $stderr.puts "Ocurrio algun error enviando el correo de notificacion."    
+      $stderr.puts "Ocurrio algun error enviando el correo de notificacion." 
+      $stderr.puts "E: #{e.message}"   
     end  
   }
   
