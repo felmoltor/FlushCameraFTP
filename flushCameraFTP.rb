@@ -272,18 +272,18 @@ files.each { |file|
 ftp.close()
 
 msg = "Se ejecuto correctamente el vaciado del FTP #{ftpserver}.\n"
-msg = "Estadisticas de la ejecucion\n"
-msg = "\n"
-msg = "===================================\n"
-msg = "= Scheduled images: \n"
-msg = "= #{n_schedimages_dlw} dowloaded\n"
-msg = "= #{n_schedimages_del} deleted\n"
-msg = "\n"
-msg = "= Movement images: \n"
-msg = "= #{n_movimages_dlw} dowloaded\n"
-msg = "= #{n_movimages_del} deleted\n"
-msg = "===================================\n"
-msg = "\n"
+msg += "Estadisticas de la ejecucion\n"
+msg += "\n"
+msg += "===================================\n"
+msg += "= Scheduled images: \n"
+msg += "= #{n_schedimages_dlw} dowloaded\n"
+msg += "= #{n_schedimages_del} deleted\n"
+msg += "\n"
+msg += "= Movement images: \n"
+msg += "= #{n_movimages_dlw} dowloaded\n"
+msg += "= #{n_movimages_del} deleted\n"
+msg += "===================================\n"
+msg += "\n"
 
 puts msg
 
@@ -322,11 +322,11 @@ if File.exists?($smtpdetailsfile)
   
   
 message = <<EMAILMESSAGE
-From: <<ORIGINALADDR>>
 To: <<DESTADDR>>
 Subject: El proceso de vaciado del FTP termino
 
 <<MESSAGE>>
+
 
 EMAILMESSAGE
 
