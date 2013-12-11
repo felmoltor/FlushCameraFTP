@@ -23,7 +23,6 @@ destinations: test@gmail.com,pepe@juan.com,felipe@example.com
 ```
 
 3. Configure in the script code "flushCameraFTP.rb" the directories where the results will be downloaded:
-
 ```
 $localcameradir = "/home/<your_user>/Camera"
 $scheduleddir = "#{$localcameradir}/Scheduled"
